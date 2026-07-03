@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0f1e5c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Adeiste" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="manifest" id="pwa-manifest" />
+<link rel="apple-touch-icon" id="apple-icon" />
+<title>Adeiste Bake Box</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --navy:#0f1e5c;--navy-light:#1a2f7a;--gold:#C9A84C;--gold-light:#e8c96a;
+  --white:#ffffff;--off-white:#fafaf8;--surface:#f4f2ed;--border:#e2ddd4;
+  --text:#1a1a1a;--text-muted:#6b6560;--text-light:#9c9590;
+  --success:#1a6b3c;--danger:#8b1a1a;--danger-bg:#fdecea;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--surface);color:var(--text);min-height:100vh;font-size:15px;}
+
+#pin-screen,#setup-screen{
+  position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:999;gap:1.5rem;padding:2rem;
+}
+#setup-screen{display:none;}
+#pin-screen h2,#setup-screen h2{color:var(--gold);font-size:22px;letter-spacing:.04em;}
+#pin-screen p,#setup-screen p{color:rgba(255,255,255,.55);font-size:13px;text-align:center;max-width:280px;}
+.pin-dots{display:flex;gap:14px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--gold);background:transparent;transition:background .15s;}
+.pin-dot.filled{background:var(--gold);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px;}
+.pin-key{height:60px;border:1px solid rgba(255,255,255,.15);border-radius:var(--radius);background:rgba(255,255,255,.06);color:var(--white);font-size:20px;font-weight:500;cursor:pointer;transition:background .12s;}
+.pin-key:hover,.pin-key:active{background:rgba(255,255,255,.18);}
+.pin-key.del{font-size:16px;color:var(--gold);}
+#pin-error,#setup-error{color:#f87171;font-size:13px;min-height:20px;text-align:center;}
+.pin-hint{color:rgba(255,255,255,.35);font-size:12px;text-align:center;}
+
+#install-banner{display:none;background:var(--gold);color:var(--navy);padding:.75rem 1.25rem;font-size:13px;font-weight:500;text-align:center;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+#install-banner button{background:var(--navy);color:var(--gold);border:none;border-radius:var(--radius-sm);padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;}
+#install-banner .dismiss{background:none;color:var(--navy);border:1px solid var(--navy);opacity:.6;}
+
+header{background:var(--navy);color:var(--white);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(15,30,92,.18);}
+.header-left h1{font-size:17px;font-weight:600;color:var(--gold);}
+.header-left p{font-size:11px;color:rgba(255,255,255,.45);margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.sync-badge{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid rgba(201,168,76,.3);color:var(--gold-light);background:rgba(201,168,76,.1);}
+.lock-btn{background:none;border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);padding:4px 10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;}
+.lock-btn:hover{background:rgba(255,255,255,.08);}
+
+.main{max-width:780px;margin:0 auto;padding:1.25rem 1rem 4rem;}
+.view-tabs{display:flex;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.25rem;}
+.view-tab{flex:1;padding:10px 4px;border:none;background:transparent;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all .15s;border-right:1px solid var(--border);}
+.view-tab:last-child{border-right:none;}
+.view-tab.active{background:var(--navy);color:var(--gold);}
+.view-tab:hover:not(.active){background:var(--surface);}
+
+.month-nav{display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;}
+.nav-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 14px;cursor:pointer;font-size:16px;color:var(--navy);font-weight:600;}
+.nav-btn:hover{background:var(--border);}
+.month-label{font-size:16px;font-weight:600;color:var(--navy);}
+
+.summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem;}
+@media(min-width:500px){.summary-grid{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:700px){.summary-grid{grid-template-columns:repeat(5,1fr);}}
+.metric-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:.875rem 1rem;}
+.metric-label{font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.metric-value{font-size:17px;font-weight:600;color:var(--navy);}
+.metric-value.profit{color:var(--success);}
+.metric-value.loss{color:var(--danger);}
+
+.section-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.125rem;margin-bottom:1rem;}
+.section-title{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:.875rem;padding-bottom:.625rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.section-icon{width:28px;height:28px;border-radius:6px;background:rgba(15,30,92,.08);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+
+.sales-category{margin-bottom:1.125rem;}
+.sales-cat-title{font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;padding:4px 0;border-bottom:1px dashed var(--border);display:flex;align-items:center;gap:6px;}
+
+.col-headers{display:grid;gap:8px;margin-bottom:6px;padding:0 2px;}
+.col-headers.sales-grid{grid-template-columns:1fr 100px 64px 80px 34px;}
+.col-headers.entry-grid{grid-template-columns:1fr 150px 34px;}
+.col-h{font-size:11px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+
+.entry-row{display:grid;gap:8px;align-items:center;margin-bottom:7px;}
+.entry-row.sales-grid{grid-template-columns:1fr 100px 64px 80px 34px;}
+.entry-row.entry-grid{grid-template-columns:1fr 150px 34px;}
+
+.entry-row input[type=text],.entry-row input[type=number]{
+  width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:14px;background:var(--off-white);color:var(--text);outline:none;transition:border-color .12s;
+}
+.entry-row input:focus{border-color:var(--navy);background:var(--white);}
+.entry-row input[type=number]{text-align:right;}
+.total-input{background:var(--surface)!important;color:var(--text-muted)!important;font-weight:500;}
+
+.del-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;cursor:pointer;color:var(--text-light);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0;}
+.del-btn:hover{background:var(--danger-bg);color:var(--danger);border-color:#f5c0c0;}
+
+.add-btn{width:100%;padding:8px 12px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer;text-align:left;margin-top:6px;transition:all .12s;}
+.add-btn:hover{background:var(--surface);border-color:var(--gold);color:var(--navy);}
+
+.preset-label{font-size:11px;color:var(--text-light);margin-bottom:6px;}
+.preset-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.preset-tag{padding:5px 11px;border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text-muted);cursor:pointer;background:var(--surface);transition:all .12s;}
+.preset-tag:hover,.preset-tag:active{background:var(--navy);color:var(--gold);border-color:var(--navy);}
+
+.action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:.5rem;}
+.export-btn{padding:10px 18px;border:1px solid var(--navy);border-radius:var(--radius-sm);background:var(--white);color:var(--navy);font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .12s;}
+.export-btn:hover{background:var(--navy);color:var(--gold);}
+.export-btn.primary{background:var(--navy);color:var(--gold);}
+.export-btn.primary:hover{background:var(--navy-light);}
+
+.period-table-wrap{overflow-x:auto;}
+table.period-table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px;}
+table.period-table th{text-align:left;padding:9px 12px;background:var(--surface);font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}
+table.period-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
+table.period-table td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums;}
+table.period-table th:not(:first-child){text-align:right;}
+table.period-table tr:last-child td{border-bottom:none;font-weight:600;background:rgba(15,30,92,.03);}
+.pos{color:var(--success);}.neg{color:var(--danger);}
+.view-title{font-size:16px;font-weight:600;color:var(--navy);margin-bottom:1rem;}
+
+@media print{
+  header,.view-tabs,.nav-btn,.add-btn,.del-btn,.action-row,#pin-screen,#setup-screen,.preset-wrap,.preset-label,.lock-btn,#install-banner{display:none!important;}
+  body{background:white;}
+}
+</style>
+</head>
+<body>
+
+<div id="pin-screen">
+  <h2>Adeiste Bake Box</h2>
+  <p id="pin-prompt">Enter your 4-digit PIN to access your financial data</p>
+  <div class="pin-dots">
+    <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key" onclick="pinKey('0')" style="grid-column:2">0</button>
+    <button class="pin-key del" onclick="pinDel()">⌫</button>
+  </div>
+  <div id="pin-error"></div>
+  <p class="pin-hint">First time? You'll be asked to create a PIN.</p>
+</div>
+
+<div id="setup-screen">
+  <h2 id="setup-title">Create a 4-digit PIN</h2>
+  <p id="setup-desc">You'll use this PIN on every device to access your data.</p>
+  <div class="pin-dots">
+    <div class="pin-dot" id="sd0"></div><div class="pin-dot" id="sd1"></div>
+    <div class="pin-dot" id="sd2"></div><div class="pin-dot" id="sd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="setupKey('1')">1</button>
+    <button class="pin-key" onclick="setupKey('2')">2</button>
+    <button class="pin-key" onclick="setupKey('3')">3</button>
+    <button class="pin-key" onclick="setupKey('4')">4</button>
+    <button class="pin-key" onclick="setupKey('5')">5</button>
+    <button class="pin-key" onclick="setupKey('6')">6</button>
+    <button class="pin-key" onclick="setupKey('7')">7</button>
+    <button class="pin-key" onclick="setupKey('8')">8</button>
+    <button class="pin-key" onclick="setupKey('9')">9</button>
+    <button class="pin-key" onclick="setupKey('0')" style="grid-column:2">0</button>
+    <button class="pin-key del" onclick="setupDel()">⌫</button>
+  </div>
+  <div id="setup-error"></div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="install-banner">
+    <span>📲 Install Adeiste Bake Box as an app on this device</span>
+    <button id="install-btn" onclick="installApp()">Install</button>
+    <button class="dismiss" onclick="dismissBanner()">✕</button>
+  </div>
+  <header>
+    <div class="header-left">
+      <h1>Adeiste Bake Box</h1>
+      <p>Financial Tracker — Tax Year 2025/2026</p>
+    </div>
+    <div class="header-right">
+      <span class="sync-badge">📱 PIN-protected</span>
+      <button class="lock-btn" onclick="lockApp()">🔒 Lock</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="view-tabs">
+      <button class="view-tab active" onclick="switchView('monthly')">Monthly Entry</button>
+      <button class="view-tab" onclick="switchView('quarterly')">Quarterly</button>
+      <button class="view-tab" onclick="switchView('yearly')">Yearly</button>
+    </div>
+
+    <div id="monthly-view">
+      <div class="month-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+        <span class="month-label" id="month-label"></span>
+        <button class="nav-btn" onclick="changeMonth(1)">&#8594;</button>
+      </div>
+      <div class="summary-grid" id="monthly-summary"></div>
+
+      <div class="section-card">
+        <div class="section-title"><div class="section-icon">🎂</div>Cake Sales</div>
+        <div id="sales-cakes-wrap"></div>
+        <div id="sales-cookies-wrap"></div>
+        <div id="sales-cupcakes-wrap"></div>
+        <div id="sales-other-wrap"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><div class="section-icon">🧂</div>Ingredient Costs</div>
+        <div class="col-headers entry-grid">
+          <span class="col-h">Item</span><span class="col-h">Amount (R)</span><span></span>
+        </div>
+        <div id="ingredients-entries"></div>
+        <button class="add-btn" onclick="addEntry('ingredients')">+ Add ingredient cost</button>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><div class="section-icon">🌸</div>Decorations &amp; Sundries</div>
+        <p class="preset-label">Tap to quickly add a decoration item:</p>
+        <div class="preset-wrap" id="decor-presets"></div>
+        <div class="col-headers entry-grid">
+          <span class="col-h">Item</span><span class="col-h">Amount (R)</span><span></span>
+        </div>
+        <div id="decorations-entries"></div>
+        <button class="add-btn" onclick="addEntry('decorations')">+ Add decoration / sundry</button>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><div class="section-icon">💡</div>Overhead Expenses</div>
+        <p class="preset-label">Tap to quickly add a common expense:</p>
+        <div class="preset-wrap" id="overhead-presets"></div>
+        <div class="col-headers entry-grid">
+          <span class="col-h">Expense</span><span class="col-h">Amount (R)</span><span></span>
+        </div>
+        <div id="overheads-entries"></div>
+        <button class="add-btn" onclick="addEntry('overheads')">+ Add overhead expense</button>
+      </div>
+
+      <div class="action-row">
+        <button class="export-btn primary" onclick="exportCSV('monthly')">⬇ Download CSV</button>
+        <button class="export-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>
+    </div>
+
+    <div id="quarterly-view" style="display:none;">
+      <p class="view-title">Quarterly Summary — March 2025 to February 2026</p>
+      <div class="section-card"><div class="period-table-wrap"><table class="period-table" id="quarterly-table"></table></div></div>
+      <div class="action-row">
+        <button class="export-btn primary" onclick="exportCSV('quarterly')">⬇ Download CSV</button>
+        <button class="export-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>
+    </div>
+
+    <div id="yearly-view" style="display:none;">
+      <p class="view-title">Annual Summary — Tax Year 2025/2026</p>
+      <div class="summary-grid" id="yearly-summary"></div>
+      <div class="section-card"><div class="period-table-wrap"><table class="period-table" id="yearly-table"></table></div></div>
+      <div class="action-row">
+        <button class="export-btn primary" onclick="exportCSV('yearly')">⬇ Download CSV</button>
+        <button class="export-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== PWA SETUP =====
+// Inline manifest as blob so it works from a local file
+const manifestData = {
+  name: 'Adeiste Bake Box',
+  short_name: 'Adeiste',
+  description: 'Financial tracker for Adeiste Bake Box',
+  start_url: '.',
+  display: 'standalone',
+  background_color: '#0f1e5c',
+  theme_color: '#0f1e5c',
+  orientation: 'portrait-primary',
+  icons: [
+    { src: makeIcon(192), sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+    { src: makeIcon(512), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+  ]
+};
+
+function makeIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0f1e5c';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#C9A84C';
+  ctx.font = 'bold ' + Math.floor(size * 0.45) + 'px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🎂', size / 2, size / 2);
+  return canvas.toDataURL('image/png');
+}
+
+// Inject manifest
+const manifestBlob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(manifestBlob);
+document.getElementById('pwa-manifest').href = manifestURL;
+
+// Apple touch icon
+document.getElementById('apple-icon').href = makeIcon(180);
+
+// Service worker (inline as blob) for offline support
+const swCode = `
+const CACHE = 'adeiste-v1';
+self.addEventListener('install', e => {
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('Offline')))
+  );
+});
+`;
+if ('serviceWorker' in navigator) {
+  const swBlob = new Blob([swCode], {type:'application/javascript'});
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL, {scope: './'}).catch(()=>{});
+}
+
+// Install prompt
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+});
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('install-banner').style.display = 'none';
+    });
+  }
+}
+function dismissBanner() {
+  document.getElementById('install-banner').style.display = 'none';
+}
+
+// ===== CONSTANTS =====
+const MONTHS = ['March','April','May','June','July','August','September','October','November','December','January','February'];
+const YEARS  = ['2025','2025','2025','2025','2025','2025','2025','2025','2025','2025','2026','2026'];
+const SALE_CATS = [
+  {key:'cakes',    label:'Cakes',                      icon:'🎂'},
+  {key:'cookies',  label:'Cookies, Biscuits & Scones', icon:'🍪'},
+  {key:'cupcakes', label:'Cupcakes',                   icon:'🧁'},
+  {key:'other',    label:'Other',                      icon:'📦'},
+];
+const DECOR_PRESETS = [
+  'Cake boards','Artificial flowers','Artificial butterflies','Bubbles',
+  'Cake toppers','Ribbon & twine','Candles & sparklers','Edible glitter',
+  'Sprinkles & pearls','Cake dummies','Acrylic stands','Wax seal stickers'
+];
+const OVERHEAD_PRESETS = [
+  'Electricity','Gas / LPG','Water','Packaging (boxes, bags, ribbon)',
+  'Baking paper & foil','Data / Internet','Printing & Labels',
+  'Equipment maintenance','Cleaning supplies','Transport / Delivery',
+  'Bank charges','Airtime'
+];
+
+// ===== STATE =====
+let data = {};
+let currentMonthIdx = (() => { const m = new Date().getMonth(); return m >= 2 ? m-2 : m+10; })();
+let pinBuffer = '', setupBuffer = '', setupFirstPin = '', setupPhase = 1;
+
+// ===== PIN =====
+function getStoredPin(){ try{ return localStorage.getItem('adeiste_pin')||''; }catch(e){ return ''; } }
+function setStoredPin(p){ try{ localStorage.setItem('adeiste_pin',p); }catch(e){} }
+
+function initApp(){
+  if(!getStoredPin()){
+    document.getElementById('pin-screen').style.display='none';
+    document.getElementById('setup-screen').style.display='flex';
+  }
+}
+
+function pinKey(d){
+  if(pinBuffer.length>=4) return;
+  pinBuffer+=d; updateDots('d',pinBuffer.length);
+  if(pinBuffer.length===4) setTimeout(checkPin,120);
+}
+function pinDel(){ pinBuffer=pinBuffer.slice(0,-1); updateDots('d',pinBuffer.length); document.getElementById('pin-error').textContent=''; }
+function updateDots(prefix,len){ for(let i=0;i<4;i++) document.getElementById(prefix+i).classList.toggle('filled',i<len); }
+
+function checkPin(){
+  if(pinBuffer===getStoredPin()){ unlockApp(); }
+  else{ document.getElementById('pin-error').textContent='Incorrect PIN. Try again.'; pinBuffer=''; updateDots('d',0); }
+}
+
+function setupKey(d){
+  if(setupBuffer.length>=4) return;
+  setupBuffer+=d; updateDots('sd',setupBuffer.length);
+  if(setupBuffer.length===4){
+    if(setupPhase===1){
+      setTimeout(()=>{ setupFirstPin=setupBuffer; setupBuffer=''; setupPhase=2; updateDots('sd',0);
+        document.getElementById('setup-title').textContent='Confirm your PIN';
+        document.getElementById('setup-desc').textContent='Enter the same PIN again to confirm.';
+      },120);
+    } else {
+      setTimeout(()=>{
+        if(setupBuffer===setupFirstPin){ setStoredPin(setupBuffer); unlockApp(); }
+        else{
+          document.getElementById('setup-error').textContent='PINs do not match. Try again.';
+          setupBuffer=''; setupFirstPin=''; setupPhase=1; updateDots('sd',0);
+          document.getElementById('setup-title').textContent='Create a 4-digit PIN';
+          document.getElementById('setup-desc').textContent="You'll use this PIN on every device.";
+        }
+      },120);
+    }
+  }
+}
+function setupDel(){ setupBuffer=setupBuffer.slice(0,-1); updateDots('sd',setupBuffer.length); }
+
+function unlockApp(){
+  document.getElementById('pin-screen').style.display='none';
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  loadData(); buildPresets(); renderMonthly();
+}
+
+function lockApp(){
+  saveData();
+  document.getElementById('app').style.display='none';
+  document.getElementById('pin-screen').style.display='flex';
+  pinBuffer=''; updateDots('d',0);
+  document.getElementById('pin-error').textContent='';
+}
+
+// ===== DATA =====
+function dataKey(){ return 'adeiste_fin_v4_'+getStoredPin(); }
+function loadData(){ try{ const s=localStorage.getItem(dataKey()); data=s?JSON.parse(s):{}; }catch(e){ data={}; } }
+function saveData(){ try{ localStorage.setItem(dataKey(),JSON.stringify(data)); }catch(e){} }
+
+function getMonth(idx){
+  const k='m'+idx;
+  if(!data[k]) data[k]={ingredients:[],decorations:[],overheads:[]};
+  SALE_CATS.forEach(c=>{ if(!data[k]['s_'+c.key]) data[k]['s_'+c.key]=[]; });
+  if(!data[k].decorations) data[k].decorations=[];
+  return data[k];
+}
+
+function calcMonth(idx){
+  const m=getMonth(idx);
+  let sales=0;
+  SALE_CATS.forEach(c=>{ (m['s_'+c.key]||[]).forEach(r=>{ sales+=(parseFloat(r.price)||0)*(parseFloat(r.qty)||0); }); });
+  const ingredients=(m.ingredients||[]).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const decorations=(m.decorations||[]).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const overheads=(m.overheads||[]).reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const expenses=ingredients+decorations+overheads;
+  return {sales,ingredients,decorations,overheads,expenses,profit:sales-expenses};
+}
+
+function r2(n){ return Math.round(n*100)/100; }
+function fmt(n){ return 'R '+r2(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ===== PRESETS =====
+function buildPresets(){
+  buildPresetGroup('decor-presets', DECOR_PRESETS, 'decorations');
+  buildPresetGroup('overhead-presets', OVERHEAD_PRESETS, 'overheads');
+}
+function buildPresetGroup(containerId, items, type){
+  const el=document.getElementById(containerId);
+  el.innerHTML='';
+  items.forEach(name=>{
+    const btn=document.createElement('button');
+    btn.className='preset-tag'; btn.textContent=name;
+    btn.onclick=()=>addPreset(type,name);
+    el.appendChild(btn);
+  });
+}
+function addPreset(type,name){
+  const m=getMonth(currentMonthIdx);
+  if(!m[type]) m[type]=[];
+  if(m[type].find(r=>r.name===name)) return;
+  m[type].push({name:name,amount:''});
+  saveData(); renderEntries(type);
+  setTimeout(()=>{
+    const rows=document.querySelectorAll('#'+type+'-entries .entry-row');
+    if(rows.length){ const inp=rows[rows.length-1].querySelector('input[type=number]'); if(inp) inp.focus(); }
+  },50);
+}
+
+// ===== RENDER =====
+function renderMonthlySummary(){
+  const c=calcMonth(currentMonthIdx);
+  const pCls=c.profit>=0?'profit':'loss';
+  document.getElementById('monthly-summary').innerHTML=
+    '<div class="metric-card"><div class="metric-label">Total Sales</div><div class="metric-value">'+fmt(c.sales)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Ingredients</div><div class="metric-value">'+fmt(c.ingredients)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Decorations</div><div class="metric-value">'+fmt(c.decorations)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Overheads</div><div class="metric-value">'+fmt(c.overheads)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Net Profit / Loss</div><div class="metric-value '+pCls+'">'+(c.profit<0?'&minus;'+fmt(-c.profit):fmt(c.profit))+'</div></div>';
+}
+
+function renderSalesCat(catKey){
+  const cat=SALE_CATS.find(c=>c.key===catKey);
+  const m=getMonth(currentMonthIdx);
+  const rows=m['s_'+catKey]||[];
+  const wrap=document.getElementById('sales-'+catKey+'-wrap');
+  wrap.innerHTML='';
+  const section=document.createElement('div'); section.className='sales-category';
+  const title=document.createElement('div'); title.className='sales-cat-title';
+  title.innerHTML='<span>'+cat.icon+'</span>'+cat.label;
+  section.appendChild(title);
+  const headers=document.createElement('div'); headers.className='col-headers sales-grid';
+  headers.innerHTML='<span class="col-h">Product</span><span class="col-h">Price (R)</span><span class="col-h">Qty</span><span class="col-h">Total (R)</span><span></span>';
+  section.appendChild(headers);
+  const entriesDiv=document.createElement('div'); entriesDiv.id='se-'+catKey;
+  rows.forEach((row,i)=>{
+    const total=r2((parseFloat(row.price)||0)*(parseFloat(row.qty)||0)).toFixed(2);
+    const d=document.createElement('div'); d.className='entry-row sales-grid';
+    const n=document.createElement('input'); n.type='text'; n.value=row.name||''; n.placeholder='Product name'; n.oninput=function(){ upSale(catKey,i,'name',this.value); };
+    const p=document.createElement('input'); p.type='number'; p.min='0'; p.step='0.01'; p.value=row.price||''; p.placeholder='0.00'; p.oninput=function(){ upSale(catKey,i,'price',this.value); };
+    const q=document.createElement('input'); q.type='number'; q.min='0'; q.step='1'; q.value=row.qty||''; q.placeholder='0'; q.oninput=function(){ upSale(catKey,i,'qty',this.value); };
+    const t=document.createElement('input'); t.type='number'; t.value=total; t.readOnly=true; t.className='total-input';
+    const db=document.createElement('button'); db.className='del-btn'; db.textContent='✕'; db.onclick=function(){ delSale(catKey,i); };
+    d.appendChild(n); d.appendChild(p); d.appendChild(q); d.appendChild(t); d.appendChild(db);
+    entriesDiv.appendChild(d);
+  });
+  section.appendChild(entriesDiv);
+  const addBtn=document.createElement('button'); addBtn.className='add-btn'; addBtn.textContent='+ Add '+cat.label.toLowerCase();
+  addBtn.onclick=function(){ addSale(catKey); };
+  section.appendChild(addBtn);
+  wrap.appendChild(section);
+}
+
+function renderEntries(type){
+  const m=getMonth(currentMonthIdx);
+  const el=document.getElementById(type+'-entries');
+  if(!el) return;
+  el.innerHTML='';
+  const ph={ingredients:'e.g. Butter 500g',decorations:'e.g. Cake board',overheads:'e.g. Electricity'};
+  (m[type]||[]).forEach((row,i)=>{
+    const d=document.createElement('div'); d.className='entry-row entry-grid';
+    const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.value=row.name||''; nameIn.placeholder=ph[type]||'Item';
+    nameIn.oninput=function(){ upEntry(type,i,'name',this.value); };
+    const amtIn=document.createElement('input'); amtIn.type='number'; amtIn.min='0'; amtIn.step='0.01'; amtIn.value=row.amount||''; amtIn.placeholder='0.00';
+    amtIn.oninput=function(){ upEntry(type,i,'amount',this.value); };
+    const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.textContent='✕';
+    delBtn.onclick=function(){ delEntry(type,i); };
+    d.appendChild(nameIn); d.appendChild(amtIn); d.appendChild(delBtn);
+    el.appendChild(d);
+  });
+}
+
+function renderMonthly(){
+  document.getElementById('month-label').textContent=MONTHS[currentMonthIdx]+' '+YEARS[currentMonthIdx];
+  renderMonthlySummary();
+  SALE_CATS.forEach(c=>renderSalesCat(c.key));
+  renderEntries('ingredients');
+  renderEntries('decorations');
+  renderEntries('overheads');
+}
+
+// ===== ACTIONS =====
+function addSale(catKey){
+  const m=getMonth(currentMonthIdx); m['s_'+catKey].push({name:'',price:'',qty:''});
+  saveData(); renderSalesCat(catKey); renderMonthlySummary();
+  setTimeout(()=>{ const rows=document.querySelectorAll('#se-'+catKey+' .entry-row'); if(rows.length) rows[rows.length-1].querySelector('input[type=text]').focus(); },50);
+}
+function delSale(catKey,idx){ getMonth(currentMonthIdx)['s_'+catKey].splice(idx,1); saveData(); renderSalesCat(catKey); renderMonthlySummary(); }
+function upSale(catKey,idx,field,val){
+  const m=getMonth(currentMonthIdx); m['s_'+catKey][idx][field]=val; saveData();
+  const row=m['s_'+catKey][idx];
+  const total=r2((parseFloat(row.price)||0)*(parseFloat(row.qty)||0)).toFixed(2);
+  const rows=document.querySelectorAll('#se-'+catKey+' .entry-row');
+  if(rows[idx]){ const ti=rows[idx].querySelector('.total-input'); if(ti) ti.value=total; }
+  renderMonthlySummary();
+}
+function addEntry(type){
+  const m=getMonth(currentMonthIdx); if(!m[type]) m[type]=[];
+  m[type].push({name:'',amount:''}); saveData(); renderEntries(type);
+  setTimeout(()=>{ const rows=document.querySelectorAll('#'+type+'-entries .entry-row'); if(rows.length) rows[rows.length-1].querySelector('input[type=text]').focus(); },50);
+}
+function delEntry(type,idx){ getMonth(currentMonthIdx)[type].splice(idx,1); saveData(); renderEntries(type); renderMonthlySummary(); }
+function upEntry(type,idx,field,val){ getMonth(currentMonthIdx)[type][idx][field]=val; saveData(); renderMonthlySummary(); }
+function changeMonth(dir){ currentMonthIdx=Math.max(0,Math.min(11,currentMonthIdx+dir)); renderMonthly(); }
+
+function switchView(v){
+  ['monthly','quarterly','yearly'].forEach((x,i)=>{
+    document.getElementById(x+'-view').style.display=v===x?'block':'none';
+    document.querySelectorAll('.view-tab')[i].classList.toggle('active',v===x);
+  });
+  if(v==='quarterly') renderQuarterly();
+  if(v==='yearly') renderYearly();
+}
+
+function renderQuarterly(){
+  const qs=[{l:'Q1 — Mar to May',m:[0,1,2]},{l:'Q2 — Jun to Aug',m:[3,4,5]},{l:'Q3 — Sep to Nov',m:[6,7,8]},{l:'Q4 — Dec to Feb',m:[9,10,11]}];
+  let t={s:0,i:0,d:0,o:0,p:0};
+  let h='<tr><th>Quarter</th><th>Sales (R)</th><th>Ingredients (R)</th><th>Decorations (R)</th><th>Overheads (R)</th><th>Net P/L (R)</th></tr>';
+  qs.forEach(q=>{
+    let s=0,i=0,d=0,o=0;
+    q.m.forEach(mi=>{ const c=calcMonth(mi); s+=c.sales; i+=c.ingredients; d+=c.decorations; o+=c.overheads; });
+    const p=s-i-d-o; t.s+=s; t.i+=i; t.d+=d; t.o+=o; t.p+=p;
+    h+='<tr><td>'+q.l+'</td><td>'+r2(s).toFixed(2)+'</td><td>'+r2(i).toFixed(2)+'</td><td>'+r2(d).toFixed(2)+'</td><td>'+r2(o).toFixed(2)+'</td><td class="'+(p>=0?'pos':'neg')+'">'+(p<0?'('+r2(-p).toFixed(2)+')':r2(p).toFixed(2))+'</td></tr>';
+  });
+  h+='<tr><td>Total</td><td>'+r2(t.s).toFixed(2)+'</td><td>'+r2(t.i).toFixed(2)+'</td><td>'+r2(t.d).toFixed(2)+'</td><td>'+r2(t.o).toFixed(2)+'</td><td class="'+(t.p>=0?'pos':'neg')+'">'+(t.p<0?'('+r2(-t.p).toFixed(2)+')':r2(t.p).toFixed(2))+'</td></tr>';
+  document.getElementById('quarterly-table').innerHTML=h;
+}
+
+function renderYearly(){
+  let t={s:0,i:0,d:0,o:0,p:0};
+  let h='<tr><th>Month</th><th>Sales (R)</th><th>Ingredients (R)</th><th>Decorations (R)</th><th>Overheads (R)</th><th>Net P/L (R)</th></tr>';
+  MONTHS.forEach((mn,mi)=>{
+    const c=calcMonth(mi); const p=c.profit;
+    t.s+=c.sales; t.i+=c.ingredients; t.d+=c.decorations; t.o+=c.overheads; t.p+=p;
+    h+='<tr><td>'+mn+' '+YEARS[mi]+'</td><td>'+r2(c.sales).toFixed(2)+'</td><td>'+r2(c.ingredients).toFixed(2)+'</td><td>'+r2(c.decorations).toFixed(2)+'</td><td>'+r2(c.overheads).toFixed(2)+'</td><td class="'+(p>=0?'pos':'neg')+'">'+(p<0?'('+r2(-p).toFixed(2)+')':r2(p).toFixed(2))+'</td></tr>';
+  });
+  h+='<tr><td>Year total</td><td>'+r2(t.s).toFixed(2)+'</td><td>'+r2(t.i).toFixed(2)+'</td><td>'+r2(t.d).toFixed(2)+'</td><td>'+r2(t.o).toFixed(2)+'</td><td class="'+(t.p>=0?'pos':'neg')+'">'+(t.p<0?'('+r2(-t.p).toFixed(2)+')':r2(t.p).toFixed(2))+'</td></tr>';
+  document.getElementById('yearly-table').innerHTML=h;
+  const pCls=t.p>=0?'profit':'loss';
+  document.getElementById('yearly-summary').innerHTML=
+    '<div class="metric-card"><div class="metric-label">Annual Sales</div><div class="metric-value">'+fmt(t.s)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Ingredients</div><div class="metric-value">'+fmt(t.i)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Decorations</div><div class="metric-value">'+fmt(t.d)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Overheads</div><div class="metric-value">'+fmt(t.o)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Net Profit / Loss</div><div class="metric-value '+pCls+'">'+(t.p<0?'&minus;'+fmt(-t.p):fmt(t.p))+'</div></div>';
+}
+
+function exportCSV(type){
+  let rows=[]; const BOM='\uFEFF';
+  if(type==='monthly'){
+    const m=getMonth(currentMonthIdx); const c=calcMonth(currentMonthIdx);
+    const mn=MONTHS[currentMonthIdx]+' '+YEARS[currentMonthIdx];
+    rows.push(['Adeiste Bake Box — '+mn]); rows.push([]);
+    SALE_CATS.forEach(cat=>{
+      rows.push([cat.label.toUpperCase()]); rows.push(['Product','Unit Price (R)','Qty','Total (R)']);
+      (m['s_'+cat.key]||[]).forEach(r=>rows.push([r.name,r.price||0,r.qty||0,r2((parseFloat(r.price)||0)*(parseFloat(r.qty)||0)).toFixed(2)]));
+      rows.push([]);
+    });
+    rows.push(['INGREDIENT COSTS']); rows.push(['Item','Amount (R)']);
+    (m.ingredients||[]).forEach(r=>rows.push([r.name,r.amount||0])); rows.push([]);
+    rows.push(['DECORATIONS & SUNDRIES']); rows.push(['Item','Amount (R)']);
+    (m.decorations||[]).forEach(r=>rows.push([r.name,r.amount||0])); rows.push([]);
+    rows.push(['OVERHEAD EXPENSES']); rows.push(['Expense','Amount (R)']);
+    (m.overheads||[]).forEach(r=>rows.push([r.name,r.amount||0])); rows.push([]);
+    rows.push(['SUMMARY']);
+    rows.push(['Total Sales (R)',r2(c.sales).toFixed(2)]);
+    rows.push(['Total Ingredients (R)',r2(c.ingredients).toFixed(2)]);
+    rows.push(['Total Decorations (R)',r2(c.decorations).toFixed(2)]);
+    rows.push(['Total Overheads (R)',r2(c.overheads).toFixed(2)]);
+    rows.push(['Total Expenses (R)',r2(c.expenses).toFixed(2)]);
+    rows.push(['Net Profit/Loss (R)',r2(c.profit).toFixed(2)]);
+  } else if(type==='quarterly'){
+    rows.push(['Adeiste Bake Box — Quarterly Summary — Tax Year 2025/2026']);
+    rows.push(['Quarter','Sales (R)','Ingredients (R)','Decorations (R)','Overheads (R)','Net P/L (R)']);
+    [{l:'Q1 Mar-May',m:[0,1,2]},{l:'Q2 Jun-Aug',m:[3,4,5]},{l:'Q3 Sep-Nov',m:[6,7,8]},{l:'Q4 Dec-Feb',m:[9,10,11]}].forEach(q=>{
+      let s=0,i=0,d=0,o=0; q.m.forEach(mi=>{ const c=calcMonth(mi); s+=c.sales; i+=c.ingredients; d+=c.decorations; o+=c.overheads; });
+      rows.push([q.l,r2(s).toFixed(2),r2(i).toFixed(2),r2(d).toFixed(2),r2(o).toFixed(2),r2(s-i-d-o).toFixed(2)]);
+    });
+  } else {
+    rows.push(['Adeiste Bake Box — Annual Summary — Tax Year 2025/2026']);
+    rows.push(['Month','Sales (R)','Ingredients (R)','Decorations (R)','Overheads (R)','Net P/L (R)']);
+    MONTHS.forEach((mn,mi)=>{ const c=calcMonth(mi); rows.push([mn+' '+YEARS[mi],r2(c.sales).toFixed(2),r2(c.ingredients).toFixed(2),r2(c.decorations).toFixed(2),r2(c.overheads).toFixed(2),r2(c.profit).toFixed(2)]); });
+  }
+  const csv=BOM+rows.map(r=>r.map(cell=>'"'+(cell+'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='adeiste_financials_'+type+'.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+initApp();
+</script>
+</body>
+</html>
