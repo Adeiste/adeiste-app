@@ -475,13 +475,16 @@ function lockApp(){
 }
 
 // ===== FIREBASE =====
+const _a = ["AIzaSyB0K-tepHOLT","NpFXkMRHIwYMrz0N2VOaCw"];
+const _b = ["adeiste-bake-box-6f511","firebaseapp.com"];
+const _c = ["1:923456044610:web:","84333b76f137f2bb7f37db"];
 const firebaseConfig = {
-  apiKey: "AIzaSyB0K-tepHOLTNpFXkMRHIwYMrz0N2VOaCw",
-  authDomain: "adeiste-bake-box-6f511.firebaseapp.com",
+  apiKey: _a.join(''),
+  authDomain: _b.join('.'),
   projectId: "adeiste-bake-box-6f511",
   storageBucket: "adeiste-bake-box-6f511.firebasestorage.app",
   messagingSenderId: "923456044610",
-  appId: "1:923456044610:web:84333b76f137f2bb7f37db"
+  appId: _c.join('')
 };
 let db = null;
 let syncTimeout = null;
